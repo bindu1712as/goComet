@@ -52,6 +52,7 @@ pipeline {
                         dir('goCometAPI') {
 
                             bat 'npm install'
+                            bat 'npx playwright install'
 
                             if (params.TEST_FILE?.trim()) {
                                 bat "npx playwright test ${params.TEST_FILE}"
