@@ -1,0 +1,33 @@
+testCases:
+  - name: Get User Details
+    method: GET
+    endpoint: /users/1
+    expectedStatus: 200
+    assertions:
+      id: 1
+      name: Leanne Graham
+      username: Bret
+      email: Sincere@april.biz
+      address.city: Gwenborough
+      company.name: Romaguera-Crona
+
+  - name: Create Post
+    method: POST
+    endpoint: /posts
+    payload:
+      title: Playwright API Framework
+      body: API Testing Example
+      userId: 1
+    expectedStatus: 201
+    assertions:
+      title: Playwright API Framework
+      userId: 1
+
+  - name: Patch Post
+    method: PATCH
+    endpoint: /posts/1
+    payload:
+      title: Updated Title
+    expectedStatus: 200
+    assertions:
+      title: Updated Title
