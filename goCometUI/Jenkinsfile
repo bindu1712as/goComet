@@ -75,12 +75,22 @@ pipeline {
                         echo "Starting Playwright tests..."
                         export BASE_URL="${params.BASE_URL}"
                         export ENABLE_AI_ANALYSIS="${params.ENABLE_AI_ANALYSIS}"
+                        export PLAYWRIGHT_HTML_OUTPUT_DIR="playwright-report"
+                        export PLAYWRIGHT_HTML_OPEN="never"
+                        export PLAYWRIGHT_JSON_OUTPUT_NAME="test-results/results.json"
+                        export PLAYWRIGHT_JUNIT_OUTPUT_NAME="test-results/junit.xml"
+                        
+                        mkdir -p playwright-report/data playwright-report/trace playwright-report/assets test-results
                         
                         npx playwright test ${browserArgs} \
-                            --reporter=html \
-                            --reporter=json \
-                            --reporter=junit \
+                            --reporter=html,json,junit \
                             --retries=${params.RETRY_COUNT}
+
+                        echo "Playwright report structure:"
+                        ls -la playwright-report || true
+                        ls -la playwright-report/data || true
+                        ls -la playwright-report/trace || true
+                        ls -la playwright-report/assets || true
                     """
                 }
             }
@@ -144,9 +154,12 @@ pipeline {
             // Archive All Artifacts
             archiveArtifacts(
                 artifacts: [
+                    'playwright-report/**',
                     'reports/failure-analysis-*',
                     'artifacts/**/*.json',
                     'logs/**/*.json',
+                    'test-results/**/*.json',
+                    'test-results/**/*.xml',
                     'test-results/**/*.png',
                     'test-results/**/*.webm'
                 ].join(','),

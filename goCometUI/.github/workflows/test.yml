@@ -76,12 +76,21 @@ jobs:
           ENABLE_AI_ANALYSIS: ${{ github.event.inputs.enableAI || true }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || '' }}
           LOG_LEVEL: INFO
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report
+          PLAYWRIGHT_HTML_OPEN: never
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/results.json
+          PLAYWRIGHT_JUNIT_OUTPUT_NAME: test-results/junit.xml
         run: |
+          mkdir -p playwright-report/data playwright-report/trace playwright-report/assets test-results
           npx playwright test \
             --project=${{ matrix.browser }} \
-            --reporter=html \
-            --reporter=json \
-            --reporter=github
+            --reporter=html,json,github,junit
+
+          echo "Playwright report structure:"
+          ls -la playwright-report || true
+          ls -la playwright-report/data || true
+          ls -la playwright-report/trace || true
+          ls -la playwright-report/assets || true
         continue-on-error: true
 
       - name: Upload Playwright Report
