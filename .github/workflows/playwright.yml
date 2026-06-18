@@ -1,0 +1,72 @@
+name: GoComet Automation
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  ui-tests:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: goCometUI
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      - name: Run UI Tests
+        run: npx playwright test
+
+      - name: Upload UI Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-ui-report
+          path: playwright-report
+
+  api-tests:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: goCometAPI
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run API Tests
+        run: npx playwright test
+
+      - name: Upload API Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-api-report
+          path: playwright-report
