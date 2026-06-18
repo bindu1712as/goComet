@@ -1,3 +1,0 @@
-LoginPage: [class LoginPage]
-[INFO] Navigating to https://opensource-demo.orangehrmlive.com/web/index.php/auth/login
-[INFO] Logging in with user: wrong
