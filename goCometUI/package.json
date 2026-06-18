@@ -1,0 +1,37 @@
+{
+  "name": "gocomet",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "ai-unit": "npx tsx framework/ai/__tests__/vectorStore.test.ts && npx tsx framework/ai/__tests__/rootCauseGenerator.test.ts",
+    "ai-report": "npx playwright test --config=playwright.config.ts --reporter=list,./framework/ai/ai-summary-reporter.js",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "ai-server": "node framework/ai/ui/server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.61.0",
+    "@types/node": "^25.9.3",
+    "allure-playwright": "^3.10.0",
+    "mcp": "^1.4.2",
+    "tsx": "^4.22.4",
+    "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "body-parser": "^2.3.0",
+    "chromadb": "^3.4.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "node-fetch": "^3.3.2",
+    "openai": "^6.44.0",
+    "winston": "^3.19.0"
+  }
+}

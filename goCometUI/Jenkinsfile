@@ -1,0 +1,216 @@
+pipeline {
+    agent any
+    
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        timestamps()
+        buildDiscarder(logRotator(numToKeepStr: '30'))
+        parallelize(3)
+    }
+    
+    parameters {
+        string(name: 'BASE_URL', defaultValue: 'https://opensource-demo.orangehrmlive.com/web/index.php/auth/login', description: 'Application URL')
+        choice(name: 'BROWSER', choices: ['chromium', 'firefox', 'webkit', 'all'], description: 'Browser to test')
+        booleanParam(name: 'ENABLE_AI_ANALYSIS', defaultValue: true, description: 'Enable AI failure analysis')
+        string(name: 'RETRY_COUNT', defaultValue: '2', description: 'Number of retries for failed tests')
+    }
+    
+    environment {
+        CI = 'true'
+        OPENAI_API_KEY = credentials('openai-api-key')
+        NODE_VERSION = '18'
+        LOG_LEVEL = 'INFO'
+    }
+    
+    stages {
+        stage('Setup') {
+            steps {
+                script {
+                    echo "========================================="
+                    echo "📦 Setup Stage"
+                    echo "========================================="
+                    echo "Base URL: ${params.BASE_URL}"
+                    echo "Browser: ${params.BROWSER}"
+                    echo "AI Analysis: ${params.ENABLE_AI_ANALYSIS}"
+                    echo "Retries: ${params.RETRY_COUNT}"
+                    echo "========================================="
+                }
+                
+                sh '''
+                    echo "Installing Node dependencies..."
+                    nvm install ${NODE_VERSION}
+                    nvm use ${NODE_VERSION}
+                    node --version
+                    npm --version
+                    npm install
+                '''
+            }
+        }
+        
+        stage('Type Check') {
+            steps {
+                sh '''
+                    echo "Running TypeScript compiler..."
+                    npx tsc --noEmit
+                '''
+            }
+        }
+        
+        stage('Install Browsers') {
+            steps {
+                sh '''
+                    echo "Installing Playwright browsers..."
+                    npx playwright install --with-deps
+                '''
+            }
+        }
+        
+        stage('Run Tests') {
+            steps {
+                script {
+                    def browsers = "${params.BROWSER}"
+                    def browserArgs = (browsers == 'all') ? '' : "--project=${browsers}"
+                    
+                    sh """
+                        echo "Starting Playwright tests..."
+                        export BASE_URL="${params.BASE_URL}"
+                        export ENABLE_AI_ANALYSIS="${params.ENABLE_AI_ANALYSIS}"
+                        
+                        npx playwright test ${browserArgs} \
+                            --reporter=html \
+                            --reporter=json \
+                            --reporter=junit \
+                            --retries=${params.RETRY_COUNT}
+                    """
+                }
+            }
+        }
+        
+        stage('Analyze Failures') {
+            when {
+                failure()
+            }
+            steps {
+                script {
+                    echo "========================================="
+                    echo "🔍 Failure Analysis"
+                    echo "========================================="
+                    sh '''
+                        # List generated reports
+                        if [ -d "reports" ]; then
+                            echo "Failure Analysis Reports:"
+                            ls -lh reports/failure-analysis-*.{json,html,md} 2>/dev/null | awk '{print "  " $9 " (" $5 ")"}' || true
+                        fi
+                        
+                        # Show vector store status
+                        if [ -f "artifacts/failures.json" ]; then
+                            FAILURE_COUNT=$(jq 'length' artifacts/failures.json 2>/dev/null || echo "0")
+                            echo "Stored Failures: $FAILURE_COUNT"
+                        fi
+                        
+                        # Summary
+                        echo "✓ Failure analysis reports generated"
+                        echo "  See: reports/ directory"
+                    '''
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            script {
+                echo "========================================="
+                echo "📊 Publishing Reports"
+                echo "========================================="
+            }
+            
+            // Playwright HTML Report
+            publishHTML([
+                reportDir: 'playwright-report',
+                reportFiles: 'index.html',
+                reportName: 'Playwright Report',
+                keepAll: true,
+                alwaysLinkToLastBuild: true
+            ])
+            
+            // Test Results as JUnit
+            junit(
+                testResults: 'test-results/**/*.xml',
+                allowEmptyResults: true,
+                healthScaleFactor: 100
+            )
+            
+            // Archive All Artifacts
+            archiveArtifacts(
+                artifacts: [
+                    'reports/failure-analysis-*',
+                    'artifacts/**/*.json',
+                    'logs/**/*.json',
+                    'test-results/**/*.png',
+                    'test-results/**/*.webm'
+                ].join(','),
+                allowEmptyArchive: true,
+                caseSensitive: false,
+                onlyIfSuccessful: false
+            )
+            
+            // Generate Test Report
+            script {
+                sh '''
+                    if [ -f "test-results/results.json" ]; then
+                        echo "Test Results Summary:"
+                        jq '.stats | "Passed: \\(.expected), Failed: \\(.failed), Skipped: \\(.skipped)"' test-results/results.json || true
+                    fi
+                '''
+            }
+        }
+        
+        success {
+            script {
+                echo "========================================="
+                echo "✅ All Tests Passed"
+                echo "========================================="
+                sh '''
+                    echo "Test execution completed successfully"
+                    if [ -d "playwright-report" ]; then
+                        echo "View report: ${BUILD_URL}Playwright_Report/"
+                    fi
+                '''
+            }
+        }
+        
+        failure {
+            script {
+                echo "========================================="
+                echo "❌ Tests Failed"
+                echo "========================================="
+                sh '''
+                    echo "Failed tests detected"
+                    echo ""
+                    echo "Review:"
+                    echo "  1. Playwright Report: ${BUILD_URL}Playwright_Report/"
+                    echo "  2. Failure Analysis: See 'Artifacts' section below"
+                    echo "  3. Console Output: Scroll down"
+                    echo ""
+                    echo "Artifacts:"
+                    [ -d "reports" ] && ls -lh reports/ | tail -5 || echo "  No reports generated"
+                '''
+            }
+        }
+        
+        cleanup {
+            cleanWs(
+                deleteDirs: true,
+                patterns: [
+                    [pattern: 'node_modules/', type: 'INCLUDE'],
+                    [pattern: '.playwright/', type: 'INCLUDE'],
+                    [pattern: 'test-results/', type: 'EXCLUDE'],
+                    [pattern: 'playwright-report/', type: 'EXCLUDE'],
+                    [pattern: 'reports/', type: 'EXCLUDE'],
+                    [pattern: 'artifacts/', type: 'EXCLUDE']
+                ]
+            )
+        }
+    }
+}

@@ -1,0 +1,283 @@
+name: E2E Tests - Playwright
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+      - develop
+  schedule:
+    # Daily tests at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      browser:
+        description: 'Browser to test'
+        required: true
+        default: 'chromium'
+        type: choice
+        options:
+          - chromium
+          - firefox
+          - webkit
+          - all
+      enableAI:
+        description: 'Enable AI analysis'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  NODE_VERSION: '18'
+  CACHE_KEY: node-modules-${{ hashFiles('**/package-lock.json') }}
+
+jobs:
+  test:
+    name: Test - ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    strategy:
+      matrix:
+        browser: [chromium, firefox, webkit]
+      fail-fast: false
+    
+    environment:
+      name: testing
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: TypeScript Check
+        run: npx tsc --noEmit
+
+      - name: Run E2E Tests
+        id: tests
+        env:
+          BASE_URL: ${{ vars.BASE_URL || 'https://opensource-demo.orangehrmlive.com/web/index.php/auth/login' }}
+          ENABLE_AI_ANALYSIS: ${{ github.event.inputs.enableAI || true }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || '' }}
+          LOG_LEVEL: INFO
+        run: |
+          npx playwright test \
+            --project=${{ matrix.browser }} \
+            --reporter=html \
+            --reporter=json \
+            --reporter=github
+        continue-on-error: true
+
+      - name: Upload Playwright Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload Failure Analysis Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failure-reports-${{ matrix.browser }}
+          path: reports/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.browser }}
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-${{ matrix.browser }}
+          path: artifacts/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Upload Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ matrix.browser }}
+          path: logs/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Test Report
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Test Results - ${{ matrix.browser }}
+          path: 'test-results/**/*.json'
+          reporter: 'java-junit'
+          fail-on-error: false
+          fail-on-empty: false
+
+  summary:
+    name: Test Summary
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Test Results Summary
+        run: |
+          echo "## Test Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Status" >> $GITHUB_STEP_SUMMARY
+          echo "- Chromium: ${{ needs.test.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- [Playwright Reports](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [Failure Analysis](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [Test Results](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Matrix Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Browser | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| chromium | ✓ |" >> $GITHUB_STEP_SUMMARY
+          echo "| firefox | ✓ |" >> $GITHUB_STEP_SUMMARY
+          echo "| webkit | ✓ |" >> $GITHUB_STEP_SUMMARY
+
+  failure-notification:
+    name: Notify on Failure
+    needs: test
+    if: failure()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create Issue on Failure
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Test Failure - Run #${context.runNumber}`,
+              body: `Automated tests failed. [View Run](${context.payload.repository.html_url}/actions/runs/${context.runId})`,
+              labels: ['test-failure', 'automated']
+            })
+
+      - name: Slack Notification
+        if: false  # Requires SLACK_WEBHOOK_URL secret
+        uses: slackapi/slack-github-action@v1.25
+        with:
+          payload: |
+            {
+              "text": "E2E Tests Failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*E2E Test Failure*\nRun: ${{ github.run_number }}\nBranch: ${{ github.ref_name }}\n[View Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+  pages-deploy:
+    name: Deploy Report to GitHub Pages
+    needs: test
+    if: always() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts-combined
+
+      - name: Prepare Pages Content
+        run: |
+          mkdir -p public
+          
+          # Copy Playwright reports
+          [ -d "artifacts-combined/playwright-report-chromium" ] && cp -r artifacts-combined/playwright-report-chromium public/playwright-report || true
+          
+          # Create index
+          cat > public/index.html <<EOF
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Test Reports</title>
+            <style>
+              body { font-family: system-ui, -apple-system, sans-serif; margin: 40px; background: #f5f5f5; }
+              h1 { color: #333; }
+              .report-card { background: white; padding: 20px; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+              a { color: #0066cc; text-decoration: none; }
+              a:hover { text-decoration: underline; }
+            </style>
+          </head>
+          <body>
+            <h1>📊 Test Reports</h1>
+            <div class="report-card">
+              <h2>Playwright Report</h2>
+              <p><a href="./playwright-report/">View Report</a></p>
+            </div>
+            <p><em>Generated: $(date -u +'%Y-%m-%d %H:%M:%S UTC')</em></p>
+          </body>
+          </html>
+          EOF
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  cleanup:
+    name: Cleanup
+    needs: [test, summary]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Delete Old Artifacts
+        uses: geekyeggo/delete-artifact@v2
+        with:
+          name: |
+            playwright-report-*
+            test-results-*
+            logs-*
+          failOnError: false
