@@ -3,16 +3,19 @@ pipeline {
     agent any
 
     tools {
+        // Uses the globally configured Jenkins Node.js tool named "Node22".
         nodejs 'Node22'
     }
 
     parameters {
+        // Select which project to execute in this run.
         choice(
             name: 'FRAMEWORK',
             choices: ['UI', 'API'],
             description: 'Select framework to run'
         )
 
+        // Optional Playwright spec path to run a targeted test.
         string(
             name: 'TEST_FILE',
             defaultValue: '',
@@ -24,6 +27,7 @@ pipeline {
 
         stage('Checkout') {
             steps {
+                // Always checkout the canonical repository main branch.
                 git branch: 'main',
                 url: 'https://github.com/bindu1712as/goComet.git'
             }
@@ -33,6 +37,7 @@ pipeline {
             steps {
                 script {
 
+                    // Run UI suite from goCometUI when FRAMEWORK=UI.
                     if (params.FRAMEWORK == 'UI') {
 
                         dir('goCometUI') {
@@ -40,23 +45,28 @@ pipeline {
                             bat 'npm install'
                             bat 'npx playwright install'
 
+                            // If TEST_FILE is provided, run only that spec.
                             if (params.TEST_FILE?.trim()) {
                                 bat "npx playwright test ${params.TEST_FILE}"
                             } else {
+                                // Default: run complete UI test suite.
                                 bat 'npx playwright test'
                             }
                         }
 
                     } else {
 
+                        // Run API suite from goCometAPI when FRAMEWORK=API.
                         dir('goCometAPI') {
 
                             bat 'npm install'
                             bat 'npx playwright install'
 
+                            // If TEST_FILE is provided, run only that spec.
                             if (params.TEST_FILE?.trim()) {
                                 bat "npx playwright test ${params.TEST_FILE}"
                             } else {
+                                // Default: run complete API test suite.
                                 bat 'npx playwright test'
                             }
                         }
@@ -70,6 +80,7 @@ pipeline {
 
         always {
 
+            // Publish UI Playwright HTML report if generated.
             publishHTML([
                 allowMissing: true,
                 alwaysLinkToLastBuild: true,
@@ -79,6 +90,7 @@ pipeline {
                 reportName: 'UI Report'
             ])
 
+            // Publish API Playwright HTML report if generated.
             publishHTML([
                 allowMissing: true,
                 alwaysLinkToLastBuild: true,
