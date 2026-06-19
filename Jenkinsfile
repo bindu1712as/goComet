@@ -42,7 +42,7 @@ pipeline {
 
                         dir('goCometUI') {
 
-                            bat 'npm install'
+                            bat 'set PUPPETEER_SKIP_DOWNLOAD=true && npm install'
                             bat 'npx playwright install'
 
                             // If TEST_FILE is provided, run only that spec.
@@ -59,7 +59,7 @@ pipeline {
                         // Run API suite from goCometAPI when FRAMEWORK=API.
                         dir('goCometAPI') {
 
-                            bat 'npm install'
+                            bat 'set PUPPETEER_SKIP_DOWNLOAD=true && npm install'
                             bat 'npx playwright install'
 
                             // If TEST_FILE is provided, run only that spec.
