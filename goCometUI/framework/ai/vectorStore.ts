@@ -141,10 +141,11 @@ export class VectorStore {
 
   private extractKeywords(text: string): string[] {
     const commonWords = new Set(['the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'and', 'or', 'not', 'in', 'at', 'to', 'for', 'of', 'by']);
-    
-    return text
+    const tokens: string[] = text
       .toLowerCase()
-      .match(/\b\w+\b/g) || []
+      .match(/\b\w+\b/g) ?? [];
+    
+    return tokens
       .filter(word => !commonWords.has(word) && word.length > 3);
   }
 

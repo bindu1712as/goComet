@@ -1,0 +1,8 @@
+[INFO] Running test case: Create Post
+[REQUEST] POST /posts | Payload: {
+  "title": "Playwright API Framework",
+  "body": "API Testing Example",
+  "userId": 1
+}
+[RESPONSE] /posts | Status: 201
+[INFO] Completed test case: Create Post

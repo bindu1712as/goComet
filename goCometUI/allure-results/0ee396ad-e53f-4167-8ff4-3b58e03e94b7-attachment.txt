@@ -1,4 +1,0 @@
-[2026-06-18T20:24:32.666Z] [INFO] Navigating to https://opensource-demo.orangehrmlive.com/web/index.php/auth/login
-[2026-06-18T20:24:59.125Z] [INFO] Logging in with user: Admin
-[2026-06-18T20:25:00.059Z] [INFO] Login button clicked
-2026-06-18T20:25:02.440Z  [Self-Healing] Primary locator resolved for "search-input": locator('input[placeholder="Search"]')

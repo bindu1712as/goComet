@@ -43,3 +43,24 @@ The GitHub Actions workflow in `.github/workflows/playwright.yml`:
 - installs Playwright browsers
 - executes `npx playwright test`
 - uploads `playwright-report/` as an artifact
+
+## CI/CD (GitHub Actions + Jenkins)
+
+This project is CI/CD-ready with both GitHub Actions and Jenkins.
+
+- GitHub Actions:
+	- Workflow file: `.github/workflows/playwright.yml`
+	- Trigger: `push` and `pull_request` on `main` and `master`
+	- Steps: checkout -> npm ci -> install Playwright browsers -> run tests -> generate Allure report
+	- Artifacts published: `playwright-report/`, `allure-results/`, `reports/`, `test-results/`
+
+- Jenkins:
+	- Pipeline file: `Jenkinsfile`
+	- Stages: checkout -> setup -> run tests -> generate Allure report
+	- Reports published: Playwright HTML report via `publishHTML`
+	- Artifacts archived: `playwright-report/**`, `allure-results/**`, `reports/**`, `test-results/**`
+
+- Test/report outputs used by CI:
+	- Playwright HTML: `playwright-report/index.html`
+	- JUnit XML: `test-results/junit.xml`
+	- Allure results: `allure-results/`

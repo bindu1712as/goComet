@@ -1,3 +1,0 @@
-[2026-06-18T20:24:32.789Z] [INFO] Navigating to https://opensource-demo.orangehrmlive.com/web/index.php/auth/login
-[2026-06-18T20:24:45.712Z] [INFO] Logging in with user: wrong
-[2026-06-18T20:24:49.065Z] [INFO] Login button clicked

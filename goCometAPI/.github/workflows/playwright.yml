@@ -19,12 +19,38 @@ jobs:
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
     - name: Run Playwright tests
-      run: npx playwright test
+      run: npm test
     - name: Generate Allure report into reports folder
       run: npm run allure:generate:reports
+    - name: Collect report structure
+      run: |
+        echo "Playwright report:"
+        ls -la playwright-report || true
+        echo "Allure results:"
+        ls -la allure-results || true
+        echo "Reports folder:"
+        ls -la reports || true
+    - uses: actions/upload-artifact@v4
+      if: ${{ !cancelled() }}
+      with:
+        name: playwright-report
+        path: playwright-report/
+        retention-days: 30
+    - uses: actions/upload-artifact@v4
+      if: ${{ !cancelled() }}
+      with:
+        name: allure-results
+        path: allure-results/
+        retention-days: 30
     - uses: actions/upload-artifact@v4
       if: ${{ !cancelled() }}
       with:
         name: reports
         path: reports/
+        retention-days: 30
+    - uses: actions/upload-artifact@v4
+      if: ${{ !cancelled() }}
+      with:
+        name: test-results
+        path: test-results/
         retention-days: 30

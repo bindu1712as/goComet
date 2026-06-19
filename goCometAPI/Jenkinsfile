@@ -1,0 +1,71 @@
+pipeline {
+  agent any
+
+  options {
+    timeout(time: 45, unit: 'MINUTES')
+    timestamps()
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+  }
+
+  environment {
+    CI = 'true'
+    NODE_VERSION = '18'
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Setup') {
+      steps {
+        sh '''
+          node --version || true
+          npm --version || true
+          npm ci
+        '''
+      }
+    }
+
+    stage('Run Tests') {
+      steps {
+        sh '''
+          mkdir -p playwright-report/data playwright-report/trace playwright-report/assets test-results reports
+          npm test
+        '''
+      }
+    }
+
+    stage('Generate Allure Report') {
+      steps {
+        sh 'npm run allure:generate:reports'
+      }
+    }
+  }
+
+  post {
+    always {
+      echo 'Publishing API framework reports and artifacts'
+
+      publishHTML([
+        reportDir: 'playwright-report',
+        reportFiles: 'index.html',
+        reportName: 'Playwright API Report',
+        keepAll: true,
+        alwaysLinkToLastBuild: true
+      ])
+
+      archiveArtifacts(
+        artifacts: 'playwright-report/**,allure-results/**,reports/**,test-results/**',
+        allowEmptyArchive: true,
+        onlyIfSuccessful: false
+      )
+    }
+
+    cleanup {
+      cleanWs(deleteDirs: true)
+    }
+  }
+}

@@ -1,5 +1,5 @@
 import { Page, expect } from '@playwright/test';
-import { healLocator } from '../../src/utils/selfHealingLocator';
+import { healLocator } from '../utils/selfHealingLocator';
 
 export class SearchPage {
 

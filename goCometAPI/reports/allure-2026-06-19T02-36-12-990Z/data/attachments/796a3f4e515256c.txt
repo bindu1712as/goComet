@@ -1,0 +1,6 @@
+[INFO] Running test case: Patch Post
+[REQUEST] PATCH /posts/1 | Payload: {
+  "title": "Updated Title"
+}
+[RESPONSE] /posts/1 | Status: 200
+[INFO] Completed test case: Patch Post

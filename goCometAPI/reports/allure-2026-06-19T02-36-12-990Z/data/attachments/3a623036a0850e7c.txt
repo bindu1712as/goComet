@@ -1,0 +1,13 @@
+[INFO] Running test case: Get User Details
+[REQUEST] GET /users/1
+[RESPONSE] /users/1 | Status: 200
+[INFO] Response status validated: 200
+[INFO] Response fields validated successfully. | {
+  "id": 1,
+  "name": "Leanne Graham",
+  "username": "Bret",
+  "email": "Sincere@april.biz",
+  "address.city": "Gwenborough",
+  "company.name": "Romaguera-Crona"
+}
+[INFO] Completed test case: Get User Details
