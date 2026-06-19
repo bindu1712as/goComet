@@ -40,7 +40,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-ui-report
-          path: playwright-report
+          path: goCometUI/playwright-report
 
   api-tests:
     runs-on: ubuntu-latest
@@ -61,6 +61,9 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
       - name: Run API Tests
         run: npx playwright test
 
@@ -69,4 +72,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-api-report
-          path: playwright-report
+          path: goCometAPI/playwright-report
