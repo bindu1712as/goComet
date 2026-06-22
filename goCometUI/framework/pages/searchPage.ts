@@ -19,7 +19,7 @@ export class SearchPage {
     async searchInput() {
         const result = await healLocator(this.page, {
             name: 'search-input',
-            primary: this.page.locator('input[placeholder="Search"]'),
+            primary: this.page.locator('input[placeholder="Search123"]'),
             primaryDescription: "locator('input[placeholder=\"Search\"]')",
             fallbacks: [
                 {
